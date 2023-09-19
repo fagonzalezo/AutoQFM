@@ -63,3 +63,44 @@ class Fitness:
         gate = gates / self.nqubits
         wc = gate + (gate * (acc**2))
         return wc, acc  #
+
+
+class CoherentFitness:
+    def __init__(
+        self,
+        nqubits: int,
+        nparameters: int,
+        random_seed: int,
+        sample_size: int,
+        sigma: float = 1.0,
+    ):
+        self.nqubits = nqubits
+        self.nparameters = nparameters
+        self.cc = encoding.CircuitConversor(nqubits, nparameters)
+        self.rng = np.random.default_rng(random_seed)
+        self.sample_size = sample_size
+        self.sigma = sigma
+
+    def __call__(self, POP):
+        uniform_x = self.rng.uniform(-1, 1, size=(self.nparameters, self.sample_size))
+        uniform_y = self.rng.uniform(-1, 1, size=(self.nparameters, self.sample_size))
+        target_kernel_values = self.gaussian_kernel(uniform_x, uniform_y, self.sigma)
+
+        x_states, x_n_gates = self.cc(POP, uniform_x)
+        y_states, y_n_gates = self.cc(POP, uniform_y)
+        assert x_n_gates == y_n_gates
+
+        normalising_constant = 1  # (2 * np.pi * self.sigma) ** (-self.nparameters / 2)
+        predicted_kernel_values = normalising_constant * np.array(
+            [np.abs(np.dot(x, np.conj(y))) ** 2 for (x, y) in zip(x_states, y_states)]
+        )
+
+        mse = np.mean((target_kernel_values - predicted_kernel_values) ** 2)
+        avg_gates = (x_n_gates + y_n_gates) / 2
+        gate = avg_gates / self.nqubits
+        return gate, mse
+
+    @staticmethod
+    def gaussian_kernel(x, y, sigma):
+        # First dimension is feature dimension, second dimension is sample dimension
+        return np.exp(-np.linalg.norm(x - y, axis=0) ** 2 / (2 * (sigma**2)))
