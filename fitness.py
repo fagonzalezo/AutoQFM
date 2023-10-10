@@ -72,26 +72,25 @@ class CoherentFitness:
         nparameters: int,
         random_seed: int,
         sample_size: int,
-        sigma: float = 1.0,
+        gamma: float = 1.0,
     ):
         self.nqubits = nqubits
         self.nparameters = nparameters
         self.cc = encoding.CircuitConversor(nqubits, nparameters)
         self.rng = np.random.default_rng(random_seed)
         self.sample_size = sample_size
-        self.sigma = sigma
+        self.gamma = gamma
 
     def __call__(self, POP):
         uniform_x = self.rng.uniform(-1, 1, size=(self.nparameters, self.sample_size))
         uniform_y = self.rng.uniform(-1, 1, size=(self.nparameters, self.sample_size))
-        target_kernel_values = self.gaussian_kernel(uniform_x, uniform_y, self.sigma)
+        target_kernel_values = self.gaussian_kernel(uniform_x, uniform_y, self.gamma)
 
         x_states, x_n_gates = self.cc(POP, uniform_x)
         y_states, y_n_gates = self.cc(POP, uniform_y)
         assert x_n_gates == y_n_gates
 
-        normalising_constant = 1  # (2 * np.pi * self.sigma) ** (-self.nparameters / 2)
-        predicted_kernel_values = normalising_constant * np.array(
+        predicted_kernel_values = np.array(
             [np.abs(np.dot(x, np.conj(y))) ** 2 for (x, y) in zip(x_states, y_states)]
         )
 
@@ -101,6 +100,6 @@ class CoherentFitness:
         return gate, mse
 
     @staticmethod
-    def gaussian_kernel(x, y, sigma):
+    def gaussian_kernel(x, y, gamma):
         # First dimension is feature dimension, second dimension is sample dimension
-        return np.exp(-np.linalg.norm(x - y, axis=0) ** 2 / (2 * (sigma**2)))
+        return np.exp(-gamma * np.linalg.norm(x - y, axis=0) ** 2)

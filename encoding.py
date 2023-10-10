@@ -1,5 +1,7 @@
 import numpy as np
 from numpy import pi as π
+from qiskit import QuantumCircuit, QuantumRegister
+from qiskit.circuit import ParameterVector
 
 import circuit
 
@@ -85,5 +87,70 @@ class CircuitConversor:
         def operation(state, parameters, k, qubit, target):
             ndx = k % self.nparameters
             return self.circuit.rz(state, parameters[ndx, :] * angle, qubit), k + 1
+
+        return operation
+
+
+class QiskitCircuitConversor(CircuitConversor):
+    def __init__(self, nqubits, nparameters):
+        super().__init__(nqubits, nparameters)
+        self.register = QuantumRegister(nqubits, "q")
+
+    def __call__(self, coding_0):
+        self.circuit = QuantumCircuit(self.register)
+        parameters = ParameterVector("x", self.nparameters)
+        k = 0
+        cost = 0
+        for ndx, z in enumerate(coding_bits(coding_0)):
+            qubit = ndx % self.nqubits
+            target = (ndx + 1) % self.nqubits
+            fn, weight = self.gates[z]
+            k = fn(parameters, self.circuit, k, qubit, target)
+            cost += weight
+        # for i in range(k, self.nparameters):
+        #     self.circuit.rz(parameters[i] * 0, self.register[0])
+        return self.circuit, cost
+
+    def make_id(self):
+        def operation(parameters, circuit, k, qubit, target):
+            return k
+
+        return operation
+
+    def make_h(self):
+        def operation(parameters, circuit, k, qubit, target):
+            circuit.h(self.register[qubit])
+            return k
+
+        return operation
+
+    def make_cx(self):
+        def operation(parameters, circuit, k, qubit, target):
+            circuit.cx(self.register[qubit], self.register[target])
+            return k
+
+        return operation
+
+    def make_rx(self, angle):
+        def operation(parameters, circuit, k, qubit, target):
+            ndx = k % self.nparameters
+            circuit.rx(parameters[ndx] * angle, self.register[qubit])
+            return k + 1
+
+        return operation
+
+    def make_ry(self, angle):
+        def operation(parameters, circuit, k, qubit, target):
+            ndx = k % self.nparameters
+            circuit.ry(parameters[ndx] * angle, self.register[qubit])
+            return k + 1
+
+        return operation
+
+    def make_rz(self, angle):
+        def operation(parameters, circuit, k, qubit, target):
+            ndx = k % self.nparameters
+            circuit.rz(parameters[ndx] * angle, self.register[qubit])
+            return k + 1
 
         return operation

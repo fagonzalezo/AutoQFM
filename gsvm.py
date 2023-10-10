@@ -78,6 +78,7 @@ def coherent_gsvm(
     ngen=2000,
     verbose=True,
     weights=[-1.0, -1.0],
+    gamma=1.0,
     debug=True,
 ):
     print("multi")
@@ -100,7 +101,9 @@ def coherent_gsvm(
     toolbox.register("select", tools.selNSGA2)
     toolbox.register(
         "evaluate",
-        fitness.CoherentFitness(nqubits, nparameters, 1234, sample_size=20, sigma=0.1),
+        fitness.CoherentFitness(
+            nqubits, nparameters, 1234, sample_size=20, gamma=gamma
+        ),
     )
     pop = toolbox.Population(n=mu)
     stats1 = tools.Statistics(key=lambda ind: ind.fitness.values[1])
